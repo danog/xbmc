@@ -364,6 +364,7 @@ bool CDVDDemuxFFmpeg::Open(const std::shared_ptr<CDVDInputStream>& pInput, bool 
           1000;
       av_dict_set_int(&options, "load_all_variants", 0, AV_OPT_SEARCH_CHILDREN);
       av_dict_set_int(&options, "max_bandwidth", maxBandwidth, AV_OPT_SEARCH_CHILDREN);
+      av_dict_set_int(&options, "parallel_open", 1, AV_OPT_SEARCH_CHILDREN);
       if (avformat_open_input(&m_pFormatContext, strFile.c_str(), iformat, &options) < 0)
       {
         CLog::Log(LOGDEBUG, "Error, could not open file {}", CURL::GetRedacted(strFile));
