@@ -1,0 +1,14 @@
+--- a/libavformat/hls.c
++++ b/libavformat/hls.c
+@@ -1852,8 +1852,10 @@
+     hls_unlock(c);
+ 
+     seg = next_segment(v);
++    /* AES-128 segments get their own key and IV when opened, so they can be
++     * prefetched too. SAMPLE-AES is decrypted with the playlist key. */
+     if (c->http_multiple == 1 && !v->input_next_requested &&
+-        seg && seg->key_type == KEY_NONE && av_strstart(seg->url, "http", NULL) &&
++        seg && seg->key_type != KEY_SAMPLE_AES && av_strstart(seg->url, "http", NULL) &&
+         !segment_reusable(v->input, current_segment(v), seg)) {
+         ret = open_input(c, v, seg, &v->input_next);
+         if (ret < 0) {
