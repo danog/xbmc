@@ -1571,6 +1571,22 @@ void CDVDDemuxFFmpeg::SetProgram(int progId)
   m_newProgram = progId;
 }
 
+void CDVDDemuxFFmpeg::EnableStream(int id, bool enable)
+{
+  // The HLS demuxer stops downloading renditions whose streams are all discarded
+  if (!m_pFormatContext || !m_pFormatContext->iformat ||
+      strcmp(m_pFormatContext->iformat->name, "hls") != 0 || id < 0 ||
+      id >= static_cast<int>(m_pFormatContext->nb_streams))
+    return;
+
+  m_pFormatContext->streams[id]->discard = enable ? AVDISCARD_NONE : AVDISCARD_ALL;
+}
+
+void CDVDDemuxFFmpeg::OpenStream(int id)
+{
+  EnableStream(id, true);
+}
+
 double CDVDDemuxFFmpeg::SelectAspect(AVStream* st, bool& forced)
 {
   // trust matroska container
