@@ -1,0 +1,78 @@
+--- a/libavformat/crypto.c
++++ b/libavformat/crypto.c
+@@ -76,11 +76,18 @@
+     { NULL }
+ };
+ 
++static void *crypto_child_next(void *obj, void *prev)
++{
++    CryptoContext *c = obj;
++    return prev ? NULL : c->hd;
++}
++
+ static const AVClass crypto_class = {
+     .class_name     = "crypto",
+     .item_name      = av_default_item_name,
+     .option         = crypto_options,
+     .version        = LIBAVUTIL_VERSION_INT,
++    .child_next     = crypto_child_next,
+ };
+ 
+ static int set_aes_arg(URLContext *h, uint8_t **buf, int *buf_len,
+--- a/libavformat/hls.c
++++ b/libavformat/hls.c
+@@ -1844,7 +1844,7 @@
+     int just_opened = 0;
+     int segment_retries = 0;
+     int http_multiple;
+-    struct segment *seg;
++    struct segment *seg, *cur;
+ 
+     if (c->http_persistent && v->input_read_done) {
+         ret = reload_playlist(v, c);
+@@ -1870,12 +1870,13 @@
+         hls_lock(c);
+         http_multiple = c->http_multiple;
+         hls_unlock(c);
+-        if (http_multiple == 1 && v->input_next_requested) {
++        if (http_multiple == 1 && v->input_next_requested && v->input_next) {
+             FFSWAP(AVIOContext *, v->input, v->input_next);
+             v->cur_seg_offset = 0;
+             v->input_next_requested = 0;
+             ret = 0;
+         } else {
++            v->input_next_requested = 0;
+             ret = open_input(c, v, seg, &v->input);
+         }
+         if (ret < 0) {
+@@ -1912,9 +1913,15 @@
+     hls_unlock(c);
+ 
+     seg = next_segment(v);
++    cur = current_segment(v);
++    /* AES-128 segments get their own key and IV when opened, so they can be
++     * prefetched too, but not while a SAMPLE-AES segment, which is decrypted
++     * with the playlist key, is still being read. */
+     if (http_multiple == 1 && !v->input_next_requested &&
+-        seg && seg->key_type == KEY_NONE && av_strstart(seg->url, "http", NULL) &&
+-        !segment_reusable(v->input, current_segment(v), seg)) {
++        seg && (seg->key_type == KEY_NONE ||
++                (seg->key_type == KEY_AES_128 && cur->key_type != KEY_SAMPLE_AES)) &&
++        av_strstart(seg->url, "http", NULL) &&
++        !segment_reusable(v->input, cur, seg)) {
+         ret = open_input(c, v, seg, &v->input_next);
+         if (ret < 0) {
+             if (ff_check_interrupt(c->interrupt_callback))
+@@ -1922,9 +1929,10 @@
+             av_log(v->parent, AV_LOG_WARNING, "Failed to open segment %"PRId64" of playlist %d\n",
+                    v->cur_seq_no + 1,
+                    v->index);
+-        } else {
+-            v->input_next_requested = 1;
++            ff_format_io_close(v->parent, &v->input_next);
+         }
++        /* After a failure, the segment is opened again when it is reached */
++        v->input_next_requested = 1;
+     }
+ 
+     if (v->init_sec_buf_read_offset < v->init_sec_data_len) {
