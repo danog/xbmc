@@ -168,6 +168,7 @@ list(APPEND sourceplugin_patch COMMAND patch -p1 -i <SOURCE_DIR>/008-ffmpeg-all-
 list(APPEND sourceplugin_patch COMMAND patch -p1 -i <SOURCE_DIR>/009-ffmpeg-all-hls-load-single-variant.patch)
 list(APPEND sourceplugin_patch COMMAND patch -p1 -i <SOURCE_DIR>/010-ffmpeg-all-hls-parallel-open.patch)
 list(APPEND sourceplugin_patch COMMAND patch -p1 -i <SOURCE_DIR>/011-ffmpeg-all-hls-prefetch-aes128-segments.patch)
+list(APPEND sourceplugin_patch COMMAND patch -p1 -i <SOURCE_DIR>/012-ffmpeg-all-hls-stop-discarded-playlists.patch)
 
 include(ExternalProject)
 externalproject_add(ffmpeg
