@@ -37,6 +37,7 @@ public:
   unsigned int AddPackets(uint8_t** data, unsigned int frames, unsigned int offset) override;
   void AddPause(unsigned int millis) override;
   void Drain() override;
+  void Flush() override;
   static void          EnumerateDevicesEx(AEDeviceInfoList &list, bool force = false);
   static void Register();
   static std::unique_ptr<IAESink> Create(std::string& device, AEAudioFormat& desiredFormat);
@@ -67,6 +68,9 @@ private:
   double m_playStartUpdated = 0.0;
   uint32_t m_stuckCounter;
   uint64_t m_timestampPos = 0;
+  int64_t m_flushTime = 0;
+  bool m_rawNeedsFlush = false;
+  bool m_timestampValid = false;
 
   static CAEDeviceInfo m_info;
   static CAEDeviceInfo m_info_raw;
