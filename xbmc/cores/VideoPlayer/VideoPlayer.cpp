@@ -1073,6 +1073,14 @@ void CVideoPlayer::OpenDefaultStreams(bool reset)
 
   bool valid;
 
+  // A tunneled video decoder is shown on the clock of PCM audio: there must be
+  // audio, and it must not be passed through (it is not for live streams)
+  m_processInfo->SetTunnelingAllowed(
+      !m_playerOptions.videoOnly && m_SelectionStreams.CountType(StreamType::AUDIO) > 0 &&
+      (m_pInputStream->IsRealtime() ||
+       !CServiceBroker::GetSettingsComponent()->GetSettings()->GetBool(
+           CSettings::SETTING_AUDIOOUTPUT_PASSTHROUGH)));
+
   // open video stream
   valid   = false;
 
