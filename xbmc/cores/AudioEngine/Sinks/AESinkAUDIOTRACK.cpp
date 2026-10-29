@@ -20,6 +20,9 @@
 
 #include "platform/android/activity/XBMCApp.h"
 
+#include <algorithm>
+#include <cmath>
+
 #include <androidjni/AudioFormat.h>
 #include <androidjni/AudioManager.h>
 #include <androidjni/AudioTrack.h>
@@ -869,6 +872,21 @@ unsigned int CAESinkAUDIOTRACK::AddPackets(uint8_t **data, unsigned int frames, 
   // for debugging only - can be removed if everything is really stable
   uint64_t startTime = CurrentHostCounter();
 
+  // Audio starting before the stream does has a negative presentation time,
+  // which some hardware synced outputs take as unsigned: they then hold the
+  // tunneled video until they resync, seconds later. Drop it.
+  unsigned int skipped = 0;
+  if (m_hwAvSyncId && m_ptsMs < 0)
+  {
+    skipped = std::min(frames, static_cast<unsigned int>(
+                                   std::ceil(-m_ptsMs * m_format.m_sampleRate / 1000.0)));
+    offset += skipped;
+    frames -= skipped;
+    m_ptsMs += 1000.0 * skipped / m_format.m_sampleRate;
+    if (!frames)
+      return skipped;
+  }
+
   uint8_t *buffer = data[0]+offset*m_format.m_frameSize;
   uint8_t *out_buf = buffer;
   int size = frames * m_format.m_frameSize;
@@ -962,9 +980,10 @@ unsigned int CAESinkAUDIOTRACK::AddPackets(uint8_t **data, unsigned int frames, 
       loop_written = 0;
     }
   }
-  unsigned int written_frames = static_cast<unsigned int>(written / m_format.m_frameSize);
+  unsigned int written_frames =
+      static_cast<unsigned int>(written / m_format.m_frameSize) + skipped;
   // frames without a time of their own (e.g. silence) continue from these
-  m_ptsMs += 1000.0 * written_frames / m_format.m_sampleRate;
+  m_ptsMs += 1000.0 * (written_frames - skipped) / m_format.m_sampleRate;
   double time_to_add_ms = 1000.0 * (CurrentHostCounter() - startTime) / CurrentHostFrequency();
   // Get Back in Sync with faked pause bursts
   if (m_passthrough && !m_info.m_wantsIECPassthrough)
