@@ -3104,6 +3104,14 @@ void CVideoPlayer::HandleMessages()
 
       m_processInfo->SetPlayTimes(0,0,0,0);
 
+      // A tunneled video decoder and its audio output are set up together, in
+      // the order streams are opened, so start the next file from scratch
+      if (m_processInfo->GetHwAvSyncId())
+      {
+        CloseStream(m_CurrentAudio, false);
+        CloseStream(m_CurrentVideo, false);
+      }
+
       m_outboundEvents->Submit([this]() {
         m_callback.OnPlayBackStarted(m_item);
       });
